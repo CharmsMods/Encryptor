@@ -505,5 +505,3 @@ class ErrorHandler {
 if (typeof window !== 'undefined') {
     window.ErrorHandler = ErrorHandler;
 }
-
-export { ErrorHandler };

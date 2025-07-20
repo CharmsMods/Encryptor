@@ -398,5 +398,3 @@ class SecurityManager {
 if (typeof window !== 'undefined') {
     window.SecurityManager = SecurityManager;
 }
-
-export default SecurityManager;
