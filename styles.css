@@ -151,6 +151,10 @@ header p {
     pointer-events: none;
 }
 
+.drag-drop-content .picker-btn {
+    pointer-events: auto;
+}
+
 .upload-icon {
     font-size: 3em;
     margin-bottom: 15px;
