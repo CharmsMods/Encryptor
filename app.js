@@ -21,8 +21,12 @@ class SecureFileImageConverter {
         
         // Store current files and results
         this.selectedFile = null;
+        this.selectedFiles = []; // Array for multiple files
         this.selectedImage = null;
         this.encryptionResult = null;
+        
+        // Initialize file archiver
+        this.fileArchiver = new FileArchiver();
         
         // Track current operations for cleanup
         this.currentOperations = new Set();
@@ -124,7 +128,7 @@ class SecureFileImageConverter {
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                this.handleFileSelection(e.target.files[0]);
+                this.handleMultipleFileSelection(Array.from(e.target.files));
             }
         });
 
@@ -144,7 +148,7 @@ class SecureFileImageConverter {
             fileDropArea.classList.remove('drag-over');
             
             if (e.dataTransfer.files.length > 0) {
-                this.handleFileSelection(e.dataTransfer.files[0]);
+                this.handleMultipleFileSelection(Array.from(e.dataTransfer.files));
             }
         });
 
@@ -239,6 +243,11 @@ class SecureFileImageConverter {
 
         document.getElementById('copy-text-btn').addEventListener('click', () => {
             this.copyToClipboard('decrypted-text');
+        });
+
+        // Multi-file handlers
+        document.getElementById('clear-files-btn').addEventListener('click', () => {
+            this.clearSelectedFiles();
         });
     }
 
@@ -380,6 +389,117 @@ class SecureFileImageConverter {
         this.updateEncryptButtonState();
     }
 
+    handleMultipleFileSelection(files) {
+        // Clear any previous errors
+        this.clearErrors();
+        
+        if (!files || files.length === 0) {
+            this.clearSelectedFiles();
+            return;
+        }
+        
+        // Validate each file
+        const validFiles = [];
+        let totalSize = 0;
+        
+        for (const file of files) {
+            const validationResult = this.validationEngine.validateFileForEncryption(file);
+            if (validationResult.isValid) {
+                validFiles.push(file);
+                totalSize += file.size;
+            } else {
+                this.showError('encrypt', `${file.name}: ${validationResult.userMessage}`);
+                return;
+            }
+        }
+        
+        // Check total size limit (1GB for all files combined)
+        if (totalSize > CONSTANTS.MAX_FILE_SIZE) {
+            this.showError('encrypt', `Total file size (${this.formatFileSize(totalSize)}) exceeds the 1GB limit.`);
+            return;
+        }
+        
+        // Store selected files
+        this.selectedFiles = validFiles;
+        
+        // Update UI based on number of files
+        if (validFiles.length === 1) {
+            // Show single file info
+            this.selectedFile = validFiles[0];
+            document.getElementById('file-name').textContent = validFiles[0].name;
+            document.getElementById('file-size').textContent = this.formatFileSize(validFiles[0].size);
+            document.getElementById('file-info').style.display = 'flex';
+            document.getElementById('multi-file-list').style.display = 'none';
+        } else {
+            // Show multi-file list
+            this.selectedFile = null;
+            document.getElementById('file-info').style.display = 'none';
+            this.displayMultiFileList(validFiles, totalSize);
+        }
+        
+        this.updateEncryptButtonState();
+    }
+
+    displayMultiFileList(files, totalSize) {
+        const multiFileList = document.getElementById('multi-file-list');
+        const fileItems = document.getElementById('file-items');
+        const fileCount = document.getElementById('file-count');
+        const totalSizeSpan = document.getElementById('total-size');
+        
+        // Update header
+        fileCount.textContent = files.length;
+        totalSizeSpan.textContent = this.formatFileSize(totalSize);
+        
+        // Clear existing items
+        fileItems.innerHTML = '';
+        
+        // Add each file
+        files.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <div class="file-item-info">
+                    <div class="file-item-name">${file.name}</div>
+                    <div class="file-item-size">${this.formatFileSize(file.size)}</div>
+                </div>
+                <button class="file-item-remove" data-index="${index}">×</button>
+            `;
+            
+            // Add remove button handler
+            const removeBtn = fileItem.querySelector('.file-item-remove');
+            removeBtn.addEventListener('click', () => {
+                this.removeFileFromSelection(index);
+            });
+            
+            fileItems.appendChild(fileItem);
+        });
+        
+        multiFileList.style.display = 'block';
+    }
+
+    removeFileFromSelection(index) {
+        if (index >= 0 && index < this.selectedFiles.length) {
+            this.selectedFiles.splice(index, 1);
+            
+            if (this.selectedFiles.length === 0) {
+                this.clearSelectedFiles();
+            } else {
+                const totalSize = this.selectedFiles.reduce((sum, file) => sum + file.size, 0);
+                this.displayMultiFileList(this.selectedFiles, totalSize);
+            }
+            
+            this.updateEncryptButtonState();
+        }
+    }
+
+    clearSelectedFiles() {
+        this.selectedFiles = [];
+        this.selectedFile = null;
+        document.getElementById('file-info').style.display = 'none';
+        document.getElementById('multi-file-list').style.display = 'none';
+        this.updateEncryptButtonState();
+    }
+
     handleImageSelection(file) {
         // Clear any previous errors
         this.clearErrors();
@@ -411,7 +531,7 @@ class SecureFileImageConverter {
         
         let hasInput = false;
         if (this.currentInputType === 'file') {
-            hasInput = this.selectedFile != null;
+            hasInput = this.selectedFile != null || this.selectedFiles.length > 0;
         } else {
             hasInput = textInput.trim().length > 0;
         }
@@ -487,27 +607,47 @@ class SecureFileImageConverter {
             let result;
             
             if (this.currentInputType === 'file') {
-                // Encrypt file
-                if (!this.selectedFile) {
-                    throw new Error('No file selected');
-                }
-                
-                // Pre-validate memory usage
-                const memoryValidation = this.validationEngine.validateMemoryUsage(this.selectedFile.size);
-                if (!memoryValidation.isValid) {
-                    throw new Error(memoryValidation.userMessage);
-                }
-                
-                // For files, we need both formats regardless of output selection
-                // because encryptFile returns imageBlob, but we need base64 for base64 output
-                const imageBlob = await this.fileProcessor.encryptFile(this.selectedFile, password, onProgress);
-                
-                if (this.currentOutputFormat === 'image') {
-                    result = { imageBlob };
+                // Handle multiple files or single file
+                if (this.selectedFiles.length > 1) {
+                    // Multiple files - create archive first
+                    onProgress(5, 'Creating Archive');
+                    const archiveResult = await this.fileArchiver.createArchive(this.selectedFiles);
+                    
+                    onProgress(15, 'Encrypting Archive');
+                    const imageBlob = await this.fileProcessor.encryptFile(
+                        new File([archiveResult.data], archiveResult.metadata.filename, {
+                            type: archiveResult.metadata.mimeType
+                        }), 
+                        password, 
+                        (percent, phase) => onProgress(15 + (percent * 0.85), phase)
+                    );
+                    
+                    if (this.currentOutputFormat === 'image') {
+                        result = { imageBlob };
+                    } else {
+                        const base64 = await this.blobToBase64(imageBlob);
+                        result = { base64, imageBlob };
+                    }
+                } else if (this.selectedFile || this.selectedFiles.length === 1) {
+                    // Single file
+                    const fileToEncrypt = this.selectedFile || this.selectedFiles[0];
+                    
+                    // Pre-validate memory usage
+                    const memoryValidation = this.validationEngine.validateMemoryUsage(fileToEncrypt.size);
+                    if (!memoryValidation.isValid) {
+                        throw new Error(memoryValidation.userMessage);
+                    }
+                    
+                    const imageBlob = await this.fileProcessor.encryptFile(fileToEncrypt, password, onProgress);
+                    
+                    if (this.currentOutputFormat === 'image') {
+                        result = { imageBlob };
+                    } else {
+                        const base64 = await this.blobToBase64(imageBlob);
+                        result = { base64, imageBlob };
+                    }
                 } else {
-                    // Convert blob to base64 for base64 output
-                    const base64 = await this.blobToBase64(imageBlob);
-                    result = { base64, imageBlob };
+                    throw new Error('No file selected');
                 }
             } else {
                 // Encrypt text
@@ -744,28 +884,132 @@ class SecureFileImageConverter {
         const textOutput = document.getElementById('text-output');
         const fileOutput = document.getElementById('file-output');
         
-        // Determine if result is text or file based on metadata
-        const isTextContent = result.metadata && result.metadata.mimeType === 'text/plain';
+        // Check if this is an archive file
+        const isArchive = result.metadata && result.metadata.mimeType === 'application/x-file-archive';
         
-        if (isTextContent) {
-            // Show text output
-            textOutput.style.display = 'block';
-            fileOutput.style.display = 'none';
-            
-            const textData = new TextDecoder().decode(result.data);
-            document.getElementById('decrypted-text').value = textData;
+        if (isArchive) {
+            // Handle multi-file archive
+            this.handleArchiveDecryption(result);
         } else {
-            // Show file download option
-            textOutput.style.display = 'none';
-            fileOutput.style.display = 'block';
+            // Determine if result is text or file based on metadata
+            const isTextContent = result.metadata && result.metadata.mimeType === 'text/plain';
             
-            document.getElementById('restored-file-name').textContent = result.filename || result.metadata?.filename || 'decrypted_file';
-            document.getElementById('restored-file-size').textContent = this.formatFileSize(result.data.byteLength);
-            
-            this.setupFileDownload(result.data, result.filename || result.metadata?.filename || 'decrypted_file', result.mimeType || result.metadata?.mimeType);
+            if (isTextContent) {
+                // Show text output
+                textOutput.style.display = 'block';
+                fileOutput.style.display = 'none';
+                
+                const textData = new TextDecoder().decode(result.data);
+                document.getElementById('decrypted-text').value = textData;
+            } else {
+                // Show file download option
+                textOutput.style.display = 'none';
+                fileOutput.style.display = 'block';
+                
+                document.getElementById('restored-file-name').textContent = result.filename || result.metadata?.filename || 'decrypted_file';
+                document.getElementById('restored-file-size').textContent = this.formatFileSize(result.data.byteLength);
+                
+                this.setupFileDownload(result.data, result.filename || result.metadata?.filename || 'decrypted_file', result.mimeType || result.metadata?.mimeType);
+            }
         }
         
         outputArea.style.display = 'block';
+    }
+
+    async handleArchiveDecryption(result) {
+        try {
+            // Extract files from archive
+            const extractedFiles = await this.fileArchiver.extractArchive(result.data);
+            
+            // Hide single file output and show multi-file output
+            document.getElementById('text-output').style.display = 'none';
+            document.getElementById('file-output').style.display = 'none';
+            
+            // Create or update multi-file output section
+            this.showMultiFileOutput(extractedFiles);
+            
+        } catch (error) {
+            console.error('Failed to extract archive:', error);
+            this.showError('decrypt', 'Failed to extract files from archive: ' + error.message);
+        }
+    }
+
+    showMultiFileOutput(extractedFiles) {
+        const outputArea = document.getElementById('decrypt-output');
+        
+        // Remove existing multi-file output if it exists
+        const existingMultiOutput = document.getElementById('multi-file-output');
+        if (existingMultiOutput) {
+            existingMultiOutput.remove();
+        }
+        
+        // Create multi-file output section
+        const multiFileOutput = document.createElement('div');
+        multiFileOutput.id = 'multi-file-output';
+        multiFileOutput.className = 'output-section';
+        multiFileOutput.innerHTML = `
+            <h3>Decrypted Files (${extractedFiles.length})</h3>
+            <div class="multi-file-downloads" id="multi-file-downloads"></div>
+            <button id="download-all-btn" class="download-btn">Download All as ZIP</button>
+        `;
+        
+        // Add to output area
+        outputArea.appendChild(multiFileOutput);
+        
+        // Populate individual file download buttons
+        const downloadsContainer = document.getElementById('multi-file-downloads');
+        
+        extractedFiles.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-download-item';
+            fileItem.innerHTML = `
+                <div class="file-download-info">
+                    <div class="file-download-name">${file.name}</div>
+                    <div class="file-download-size">${this.formatFileSize(file.size)}</div>
+                </div>
+                <button class="download-btn file-download-btn" data-index="${index}">Download</button>
+            `;
+            
+            // Add download handler for individual file
+            const downloadBtn = fileItem.querySelector('.file-download-btn');
+            downloadBtn.addEventListener('click', () => {
+                this.downloadIndividualFile(file);
+            });
+            
+            downloadsContainer.appendChild(fileItem);
+        });
+        
+        // Add download all handler
+        document.getElementById('download-all-btn').addEventListener('click', () => {
+            this.downloadAllFiles(extractedFiles);
+        });
+    }
+
+    downloadIndividualFile(file) {
+        const blob = new Blob([file.data], { type: file.type || 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    async downloadAllFiles(extractedFiles) {
+        try {
+            // Create a simple ZIP-like structure for download
+            // For now, we'll download files individually with a delay
+            for (let i = 0; i < extractedFiles.length; i++) {
+                setTimeout(() => {
+                    this.downloadIndividualFile(extractedFiles[i]);
+                }, i * 500); // 500ms delay between downloads
+            }
+        } catch (error) {
+            console.error('Failed to download all files:', error);
+            this.showError('decrypt', 'Failed to download all files: ' + error.message);
+        }
     }
 
     setupImageDownload(imageBlob) {

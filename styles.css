@@ -306,6 +306,120 @@ main {
     font-weight: 500;
 }
 
+/* Multi-File List */
+.multi-file-list {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    margin-top: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.multi-file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.multi-file-header h4 {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.clear-btn {
+    background: rgba(231, 76, 60, 0.8);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.clear-btn:hover {
+    background: rgba(192, 57, 43, 1);
+    transform: translateY(-1px);
+}
+
+.file-items {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s ease;
+}
+
+.file-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-item-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.file-item-name {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.file-item-size {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+}
+
+.file-item-remove {
+    background: rgba(231, 76, 60, 0.6);
+    color: white;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    margin-left: 10px;
+}
+
+.file-item-remove:hover {
+    background: rgba(231, 76, 60, 0.9);
+    transform: scale(1.1);
+}
+
+.total-size {
+    padding: 15px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+}
+
 /* Text Areas and Inputs */
 textarea, input[type="password"] {
     width: 100%;
@@ -809,6 +923,97 @@ nced Error Handling Styles */
     }
 }
 
+/* Multi-File Download Interface */
+.multi-file-downloads {
+    margin-bottom: 20px;
+}
+
+.file-download-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.file-download-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.file-download-item:last-child {
+    margin-bottom: 0;
+}
+
+.file-download-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.file-download-name {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.file-download-size {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+}
+
+.file-download-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+    margin-left: 15px;
+}
+
+#download-all-btn {
+    width: 100%;
+    margin-top: 15px;
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    background: rgba(39, 174, 96, 0.9);
+    backdrop-filter: blur(10px);
+}
+
+#download-all-btn:hover {
+    background: rgba(34, 153, 84, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+/* Responsive enhancements for multi-file interface */
+@media (max-width: 600px) {
+    .file-download-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .file-download-btn {
+        margin-left: 0;
+        align-self: stretch;
+    }
+    
+    .multi-file-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .clear-btn {
+        align-self: stretch;
+        text-align: center;
+    }
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
     .critical-error-notification {
@@ -829,5 +1034,13 @@ nced Error Handling Styles */
     
     .drag-drop-area.drag-over {
         animation: none;
+    }
+    
+    .file-download-item:hover {
+        transform: none;
+    }
+    
+    #download-all-btn:hover {
+        transform: none;
     }
 }

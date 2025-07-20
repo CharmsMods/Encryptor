@@ -35,15 +35,25 @@
                     <div class="drag-drop-area" id="file-drop-area">
                         <div class="drag-drop-content">
                             <div class="upload-icon">📁</div>
-                            <p>Drag and drop a file here</p>
+                            <p>Drag and drop files here</p>
                             <p class="or-text">or</p>
-                            <button id="file-picker-btn" class="picker-btn">Choose File</button>
-                            <input type="file" id="file-input" hidden>
+                            <button id="file-picker-btn" class="picker-btn">Choose Files</button>
+                            <input type="file" id="file-input" multiple hidden>
                         </div>
                     </div>
                     <div class="file-info" id="file-info" style="display: none;">
                         <span id="file-name"></span>
                         <span id="file-size"></span>
+                    </div>
+                    <div class="multi-file-list" id="multi-file-list" style="display: none;">
+                        <div class="multi-file-header">
+                            <h4>Selected Files (<span id="file-count">0</span>)</h4>
+                            <button id="clear-files-btn" class="clear-btn">Clear All</button>
+                        </div>
+                        <div class="file-items" id="file-items"></div>
+                        <div class="total-size">
+                            Total Size: <span id="total-size">0 Bytes</span>
+                        </div>
                     </div>
                 </div>
 
@@ -179,6 +189,7 @@
     <script src="validation-engine.js"></script>
     <script src="error-handler.js"></script>
     <script src="security-manager.js"></script>
+    <script src="file-archiver.js"></script>
     
     <!-- Load ES6 modules -->
     <script type="module">

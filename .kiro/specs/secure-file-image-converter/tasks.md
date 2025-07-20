@@ -152,3 +152,20 @@
   - Implement browser compatibility testing for Web Crypto API, Canvas API, and File API
   - Add final security validation and cleanup verification
   - _Requirements: 1.1-1.5, 2.1-2.5, 3.1-3.5, 4.1-4.5, 5.1-5.5, 6.1-6.5, 7.1-7.5_
+- [
+ ] 11. Add multi-file upload and batch processing support
+  - Modify HTML to support multiple file selection with `multiple` attribute
+  - Update drag-and-drop areas to handle multiple files simultaneously
+  - Create file archive structure to combine multiple files into single encrypted payload
+  - Implement file manifest system to track individual files within the archive
+  - Add UI components to display selected multiple files with individual file info
+  - Create batch encryption workflow that combines all files before encryption
+  - Implement batch decryption that extracts and provides individual file downloads
+  - Add progress reporting for multi-file operations with per-file status
+  - Create ZIP-like archive format with file metadata (name, size, type, path)
+  - Add file removal functionality from multi-file selection before encryption
+  - Implement memory management for large multi-file operations
+  - Add validation for total combined file size limits
+  - Create individual file download buttons in decryption output
+  - Write comprehensive tests for multi-file encryption/decryption workflows
+  - _Requirements: Enhanced file processing, improved user experience, archive functionality_
