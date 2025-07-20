@@ -806,10 +806,8 @@ class SecureFileImageConverter {
             URL.revokeObjectURL(url);
         });
     }
-}
 
-// Application class is now initialized from the HTML module script  
-  /**
+    /**
      * Show enhanced error with recovery options
      * @param {string} type - Operation type ('encrypt' or 'decrypt')
      * @param {ProcessedError} processedError - Processed error with recovery options
