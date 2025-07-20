@@ -174,39 +174,45 @@
         </main>
     </div>
 
+    <!-- Load scripts in correct order -->
     <script src="interfaces.js"></script>
     <script src="validation-engine.js"></script>
+    <script src="error-handler.js"></script>
+    <script src="security-manager.js"></script>
+    
+    <!-- Load ES6 modules -->
     <script type="module">
         // Import and expose components globally
         import CryptoEngine from './crypto-engine.js';
         import { ImageConverterImpl } from './image-converter.js';
         import { FileProcessorImpl } from './file-processor.js';
-        import { ErrorHandler } from './error-handler.js';
         
         // Make components available globally
         window.CryptoEngine = CryptoEngine;
         window.ImageConverterImpl = ImageConverterImpl;
         window.FileProcessorImpl = FileProcessorImpl;
-        window.ErrorHandler = ErrorHandler;
         
         console.log('Components loaded:', {
             CryptoEngine: !!window.CryptoEngine,
             ImageConverterImpl: !!window.ImageConverterImpl,
             FileProcessorImpl: !!window.FileProcessorImpl,
             ValidationEngineImpl: !!window.ValidationEngineImpl,
-            ErrorHandler: !!window.ErrorHandler
+            ErrorHandler: !!window.ErrorHandler,
+            SecurityManager: !!window.SecurityManager,
+            CONSTANTS: !!window.CONSTANTS
         });
-        
     </script>
+    
     <script src="app.js"></script>
+    
     <script>
         // Initialize app after components are loaded
         document.addEventListener('DOMContentLoaded', () => {
             try {
                 window.app = new SecureFileImageConverter();
-                console.log('App initialized successfully');
+                console.log('✅ App initialized successfully');
             } catch (error) {
-                console.error('Failed to initialize app:', error);
+                console.error('❌ Failed to initialize app:', error);
             }
         });
     </script>
