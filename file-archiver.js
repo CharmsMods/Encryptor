@@ -229,5 +229,3 @@ class FileArchiver {
 if (typeof window !== 'undefined') {
     window.FileArchiver = FileArchiver;
 }
-
-export { FileArchiver };

@@ -7,33 +7,33 @@ class SecureFileImageConverter {
         this.currentInputType = 'file';
         this.currentOutputFormat = 'image';
         this.currentDecryptInputType = 'image';
-        
+
         // Initialize error handler first
         this.errorHandler = new ErrorHandler();
         this.errorHandler.setDebugMode(false); // Set to true for development
-        
+
         // Initialize security manager
         this.securityManager = this.initializeSecurityManager();
-        
+
         // Initialize components
         this.validationEngine = new ValidationEngineImpl();
         this.fileProcessor = new FileProcessorImpl();
-        
+
         // Store current files and results
         this.selectedFile = null;
         this.selectedFiles = []; // Array for multiple files
         this.selectedImage = null;
         this.encryptionResult = null;
-        
+
         // Initialize file archiver
-        this.fileArchiver = new FileArchiver();
-        
+        this.fileArchiver = this.initializeFileArchiver();
+
         // Track current operations for cleanup
         this.currentOperations = new Set();
-        
+
         // Setup security monitoring
         this.setupSecurityMonitoring();
-        
+
         this.initializeEventListeners();
         this.initializeUI();
     }
@@ -48,12 +48,12 @@ class SecureFileImageConverter {
             if (typeof window !== 'undefined' && window.SecurityManager) {
                 return new window.SecurityManager();
             }
-            
+
             // Try to get SecurityManager from import
             if (typeof SecurityManager !== 'undefined') {
                 return new SecurityManager();
             }
-            
+
             // Return a minimal security manager for testing
             return this.createMinimalSecurityManager();
         } catch (error) {
@@ -75,12 +75,75 @@ class SecureFileImageConverter {
         };
     }
 
+    /**
+     * Initialize FileArchiver if available
+     * @returns {FileArchiver|Object} FileArchiver instance or minimal implementation
+     */
+    initializeFileArchiver() {
+        try {
+            // Try to get FileArchiver from global scope first
+            if (typeof window !== 'undefined' && window.FileArchiver) {
+                return new window.FileArchiver();
+            }
+
+            // Try to get FileArchiver from import
+            if (typeof FileArchiver !== 'undefined') {
+                return new FileArchiver();
+            }
+
+            // Return a minimal file archiver for testing
+            return this.createMinimalFileArchiver();
+        } catch (error) {
+            console.warn('FileArchiver not available, using minimal implementation');
+            return this.createMinimalFileArchiver();
+        }
+    }
+
+    /**
+     * Creates a minimal file archiver for testing/fallback
+     * @returns {Object} Minimal file archiver
+     */
+    createMinimalFileArchiver() {
+        return {
+            createArchive: async (files) => {
+                // Simple fallback - just use the first file
+                if (files && files.length > 0) {
+                    const file = files[0];
+                    const data = await this.readFileAsArrayBuffer(file);
+                    return {
+                        data: data,
+                        metadata: {
+                            filename: file.name,
+                            mimeType: file.type || 'application/octet-stream',
+                            timestamp: Date.now(),
+                            originalFileCount: 1,
+                            totalSize: file.size,
+                            fileNames: [file.name]
+                        }
+                    };
+                }
+                throw new Error('No files provided');
+            },
+            extractArchive: async (data) => {
+                // Simple fallback - return single file
+                return [{
+                    name: 'extracted_file',
+                    size: data.byteLength,
+                    type: 'application/octet-stream',
+                    data: data,
+                    originalIndex: 0
+                }];
+            },
+            isValidArchive: () => false
+        };
+    }
+
     initializeEventListeners() {
         // Mode switching
         document.getElementById('encrypt-mode-btn').addEventListener('click', () => {
             this.switchMode('encrypt');
         });
-        
+
         document.getElementById('decrypt-mode-btn').addEventListener('click', () => {
             this.switchMode('decrypt');
         });
@@ -89,7 +152,7 @@ class SecureFileImageConverter {
         document.getElementById('file-input-tab').addEventListener('click', () => {
             this.switchEncryptInputType('file');
         });
-        
+
         document.getElementById('text-input-tab').addEventListener('click', () => {
             this.switchEncryptInputType('text');
         });
@@ -98,20 +161,20 @@ class SecureFileImageConverter {
         document.getElementById('image-input-tab').addEventListener('click', () => {
             this.switchDecryptInputType('image');
         });
-        
+
         document.getElementById('base64-input-tab').addEventListener('click', () => {
             this.switchDecryptInputType('base64');
         });
 
         // File input handlers
         this.setupFileInputHandlers();
-        
+
         // Password input handlers
         this.setupPasswordHandlers();
-        
+
         // Output format handlers
         this.setupOutputFormatHandlers();
-        
+
         // Action button handlers
         this.setupActionButtonHandlers();
     }
@@ -146,7 +209,7 @@ class SecureFileImageConverter {
         fileDropArea.addEventListener('drop', (e) => {
             e.preventDefault();
             fileDropArea.classList.remove('drag-over');
-            
+
             if (e.dataTransfer.files.length > 0) {
                 this.handleMultipleFileSelection(Array.from(e.dataTransfer.files));
             }
@@ -181,7 +244,7 @@ class SecureFileImageConverter {
         imageDropArea.addEventListener('drop', (e) => {
             e.preventDefault();
             imageDropArea.classList.remove('drag-over');
-            
+
             if (e.dataTransfer.files.length > 0) {
                 this.handleImageSelection(e.dataTransfer.files[0]);
             }
@@ -254,7 +317,7 @@ class SecureFileImageConverter {
     setupSecurityMonitoring() {
         // Validate security state on initialization
         const securityState = this.securityManager.validateSecurityState();
-        
+
         if (!securityState.overall) {
             console.warn('Security validation failed:', securityState);
             const recommendations = this.securityManager.getSecurityRecommendations();
@@ -262,7 +325,7 @@ class SecureFileImageConverter {
                 console.warn('Security recommendations:', recommendations);
             }
         }
-        
+
         // Setup periodic security checks
         setInterval(() => {
             const memoryUsage = this.securityManager.getMemoryUsage();
@@ -272,7 +335,7 @@ class SecureFileImageConverter {
                 this.securityManager.performSecureCleanup();
             }
         }, 30000); // Check every 30 seconds
-        
+
         // Setup cleanup on operations completion
         this.setupOperationCleanup();
     }
@@ -281,7 +344,7 @@ class SecureFileImageConverter {
         // Override the original methods to add cleanup
         const originalHandleEncrypt = this.handleEncrypt.bind(this);
         const originalHandleDecrypt = this.handleDecrypt.bind(this);
-        
+
         this.handleEncrypt = async () => {
             try {
                 await originalHandleEncrypt();
@@ -290,7 +353,7 @@ class SecureFileImageConverter {
                 setTimeout(() => this.securityManager.performSecureCleanup(), 1000);
             }
         };
-        
+
         this.handleDecrypt = async () => {
             try {
                 await originalHandleDecrypt();
@@ -312,66 +375,66 @@ class SecureFileImageConverter {
 
     switchMode(mode) {
         this.currentMode = mode;
-        
+
         // Update mode buttons
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.classList.remove('active');
         });
         document.getElementById(`${mode}-mode-btn`).classList.add('active');
-        
+
         // Update sections
         document.querySelectorAll('.section').forEach(section => {
             section.classList.remove('active');
         });
         document.getElementById(`${mode}-section`).classList.add('active');
-        
+
         // Clear any previous errors
         this.clearErrors();
     }
 
     switchEncryptInputType(type) {
         this.currentInputType = type;
-        
+
         // Update tab buttons
         document.querySelectorAll('#encrypt-section .tab-btn').forEach(btn => {
             btn.classList.remove('active');
         });
         document.getElementById(`${type}-input-tab`).classList.add('active');
-        
+
         // Update input areas
         document.querySelectorAll('#encrypt-section .input-area').forEach(area => {
             area.classList.remove('active');
         });
         document.getElementById(`${type}-input-area`).classList.add('active');
-        
+
         this.updateEncryptButtonState();
     }
 
     switchDecryptInputType(type) {
         this.currentDecryptInputType = type;
-        
+
         // Update tab buttons
         document.querySelectorAll('#decrypt-section .tab-btn').forEach(btn => {
             btn.classList.remove('active');
         });
         document.getElementById(`${type}-input-tab`).classList.add('active');
-        
+
         // Update input areas
         document.querySelectorAll('#decrypt-section .input-area').forEach(area => {
             area.classList.remove('active');
         });
         document.getElementById(`${type}-input-area`).classList.add('active');
-        
+
         this.updateDecryptButtonState();
     }
 
     handleFileSelection(file) {
         // Clear any previous errors
         this.clearErrors();
-        
+
         // Validate the selected file
         const validationResult = this.validationEngine.validateFileForEncryption(file);
-        
+
         if (!validationResult.isValid) {
             this.showError('encrypt', validationResult.userMessage);
             this.selectedFile = null;
@@ -379,12 +442,12 @@ class SecureFileImageConverter {
             this.updateEncryptButtonState();
             return;
         }
-        
+
         // Display file information
         document.getElementById('file-name').textContent = file.name;
         document.getElementById('file-size').textContent = this.formatFileSize(file.size);
         document.getElementById('file-info').style.display = 'flex';
-        
+
         this.selectedFile = file;
         this.updateEncryptButtonState();
     }
@@ -392,16 +455,16 @@ class SecureFileImageConverter {
     handleMultipleFileSelection(files) {
         // Clear any previous errors
         this.clearErrors();
-        
+
         if (!files || files.length === 0) {
             this.clearSelectedFiles();
             return;
         }
-        
+
         // Validate each file
         const validFiles = [];
         let totalSize = 0;
-        
+
         for (const file of files) {
             const validationResult = this.validationEngine.validateFileForEncryption(file);
             if (validationResult.isValid) {
@@ -412,16 +475,16 @@ class SecureFileImageConverter {
                 return;
             }
         }
-        
+
         // Check total size limit (1GB for all files combined)
         if (totalSize > CONSTANTS.MAX_FILE_SIZE) {
             this.showError('encrypt', `Total file size (${this.formatFileSize(totalSize)}) exceeds the 1GB limit.`);
             return;
         }
-        
+
         // Store selected files
         this.selectedFiles = validFiles;
-        
+
         // Update UI based on number of files
         if (validFiles.length === 1) {
             // Show single file info
@@ -436,7 +499,7 @@ class SecureFileImageConverter {
             document.getElementById('file-info').style.display = 'none';
             this.displayMultiFileList(validFiles, totalSize);
         }
-        
+
         this.updateEncryptButtonState();
     }
 
@@ -445,14 +508,14 @@ class SecureFileImageConverter {
         const fileItems = document.getElementById('file-items');
         const fileCount = document.getElementById('file-count');
         const totalSizeSpan = document.getElementById('total-size');
-        
+
         // Update header
         fileCount.textContent = files.length;
         totalSizeSpan.textContent = this.formatFileSize(totalSize);
-        
+
         // Clear existing items
         fileItems.innerHTML = '';
-        
+
         // Add each file
         files.forEach((file, index) => {
             const fileItem = document.createElement('div');
@@ -464,30 +527,30 @@ class SecureFileImageConverter {
                 </div>
                 <button class="file-item-remove" data-index="${index}">×</button>
             `;
-            
+
             // Add remove button handler
             const removeBtn = fileItem.querySelector('.file-item-remove');
             removeBtn.addEventListener('click', () => {
                 this.removeFileFromSelection(index);
             });
-            
+
             fileItems.appendChild(fileItem);
         });
-        
+
         multiFileList.style.display = 'block';
     }
 
     removeFileFromSelection(index) {
         if (index >= 0 && index < this.selectedFiles.length) {
             this.selectedFiles.splice(index, 1);
-            
+
             if (this.selectedFiles.length === 0) {
                 this.clearSelectedFiles();
             } else {
                 const totalSize = this.selectedFiles.reduce((sum, file) => sum + file.size, 0);
                 this.displayMultiFileList(this.selectedFiles, totalSize);
             }
-            
+
             this.updateEncryptButtonState();
         }
     }
@@ -503,10 +566,10 @@ class SecureFileImageConverter {
     handleImageSelection(file) {
         // Clear any previous errors
         this.clearErrors();
-        
+
         // Validate the selected image
         const validationResult = this.validationEngine.validateImageForDecryption(file);
-        
+
         if (!validationResult.isValid) {
             this.showError('decrypt', validationResult.userMessage);
             this.selectedImage = null;
@@ -514,12 +577,12 @@ class SecureFileImageConverter {
             this.updateDecryptButtonState();
             return;
         }
-        
+
         // Display image information
         document.getElementById('image-name').textContent = file.name;
         document.getElementById('image-size').textContent = this.formatFileSize(file.size);
         document.getElementById('image-info').style.display = 'flex';
-        
+
         this.selectedImage = file;
         this.updateDecryptButtonState();
     }
@@ -528,18 +591,18 @@ class SecureFileImageConverter {
         const encryptBtn = document.getElementById('encrypt-btn');
         const password = document.getElementById('encrypt-password').value;
         const textInput = document.getElementById('text-input').value;
-        
+
         let hasInput = false;
         if (this.currentInputType === 'file') {
             hasInput = this.selectedFile != null || this.selectedFiles.length > 0;
         } else {
             hasInput = textInput.trim().length > 0;
         }
-        
+
         // Validate password
         const passwordValidation = this.validationEngine.validatePasswordWithDetails(password);
         const hasValidPassword = passwordValidation.isValid;
-        
+
         encryptBtn.disabled = !(hasInput && hasValidPassword);
     }
 
@@ -547,7 +610,7 @@ class SecureFileImageConverter {
         const decryptBtn = document.getElementById('decrypt-btn');
         const password = document.getElementById('decrypt-password').value;
         const base64Input = document.getElementById('base64-input').value;
-        
+
         let hasValidInput = false;
         if (this.currentDecryptInputType === 'image') {
             hasValidInput = this.selectedImage != null;
@@ -556,27 +619,27 @@ class SecureFileImageConverter {
             const base64Validation = this.validationEngine.validateBase64String(base64Input);
             hasValidInput = base64Validation.isValid;
         }
-        
+
         // Validate password
         const passwordValidation = this.validationEngine.validatePasswordWithDetails(password);
         const hasValidPassword = passwordValidation.isValid;
-        
+
         decryptBtn.disabled = !(hasValidInput && hasValidPassword);
     }
 
     validateBase64Input() {
         const base64Input = document.getElementById('base64-input');
         const base64Value = base64Input.value;
-        
+
         // Clear any previous errors when input is empty
         if (base64Value.trim().length === 0) {
             this.clearErrors();
             return;
         }
-        
+
         // Validate Base64 format
         const validationResult = this.validationEngine.validateBase64String(base64Value);
-        
+
         if (!validationResult.isValid) {
             this.showError('decrypt', validationResult.userMessage);
         } else {
@@ -587,13 +650,13 @@ class SecureFileImageConverter {
     async handleEncrypt() {
         const operationId = `encrypt_${Date.now()}`;
         this.currentOperations.add(operationId);
-        
+
         try {
             this.clearErrors();
             this.hideOutput('encrypt');
-            
+
             const password = document.getElementById('encrypt-password').value;
-            
+
             // Enhanced progress callback with error handling
             const onProgress = (percent, phase) => {
                 try {
@@ -603,25 +666,25 @@ class SecureFileImageConverter {
                     console.warn('Progress reporting error:', processedError.userMessage);
                 }
             };
-            
+
             let result;
-            
+
             if (this.currentInputType === 'file') {
                 // Handle multiple files or single file
                 if (this.selectedFiles.length > 1) {
                     // Multiple files - create archive first
                     onProgress(5, 'Creating Archive');
                     const archiveResult = await this.fileArchiver.createArchive(this.selectedFiles);
-                    
+
                     onProgress(15, 'Encrypting Archive');
                     const imageBlob = await this.fileProcessor.encryptFile(
                         new File([archiveResult.data], archiveResult.metadata.filename, {
                             type: archiveResult.metadata.mimeType
-                        }), 
-                        password, 
+                        }),
+                        password,
                         (percent, phase) => onProgress(15 + (percent * 0.85), phase)
                     );
-                    
+
                     if (this.currentOutputFormat === 'image') {
                         result = { imageBlob };
                     } else {
@@ -631,15 +694,15 @@ class SecureFileImageConverter {
                 } else if (this.selectedFile || this.selectedFiles.length === 1) {
                     // Single file
                     const fileToEncrypt = this.selectedFile || this.selectedFiles[0];
-                    
+
                     // Pre-validate memory usage
                     const memoryValidation = this.validationEngine.validateMemoryUsage(fileToEncrypt.size);
                     if (!memoryValidation.isValid) {
                         throw new Error(memoryValidation.userMessage);
                     }
-                    
+
                     const imageBlob = await this.fileProcessor.encryptFile(fileToEncrypt, password, onProgress);
-                    
+
                     if (this.currentOutputFormat === 'image') {
                         result = { imageBlob };
                     } else {
@@ -655,15 +718,15 @@ class SecureFileImageConverter {
                 if (!textInput.trim()) {
                     throw new Error('No text entered');
                 }
-                
+
                 result = await this.fileProcessor.encryptText(textInput, password, onProgress);
             }
-            
+
             // Store result and show output
             this.encryptionResult = result;
             this.showEncryptionOutput(result);
             this.showSuccessMessage('encrypt', 'File encrypted successfully!');
-            
+
         } catch (error) {
             const processedError = this.errorHandler.handleError(error, 'encryption', {
                 inputType: this.currentInputType,
@@ -671,7 +734,7 @@ class SecureFileImageConverter {
                 fileSize: this.selectedFile?.size,
                 operationId
             });
-            
+
             this.showEnhancedError('encrypt', processedError);
         } finally {
             this.currentOperations.delete(operationId);
@@ -683,13 +746,13 @@ class SecureFileImageConverter {
     async handleDecrypt() {
         const operationId = `decrypt_${Date.now()}`;
         this.currentOperations.add(operationId);
-        
+
         try {
             this.clearErrors();
             this.hideOutput('decrypt');
-            
+
             const password = document.getElementById('decrypt-password').value;
-            
+
             // Enhanced progress callback with error handling
             const onProgress = (percent, phase) => {
                 try {
@@ -699,15 +762,15 @@ class SecureFileImageConverter {
                     console.warn('Progress reporting error:', processedError.userMessage);
                 }
             };
-            
+
             let result;
-            
+
             if (this.currentDecryptInputType === 'image') {
                 // Decrypt from image
                 if (!this.selectedImage) {
                     throw new Error('No image selected');
                 }
-                
+
                 result = await this.fileProcessor.decryptFile(this.selectedImage, password, onProgress);
             } else {
                 // Decrypt from Base64
@@ -715,21 +778,21 @@ class SecureFileImageConverter {
                 if (!base64Input.trim()) {
                     throw new Error('No Base64 data entered');
                 }
-                
+
                 result = await this.fileProcessor.decryptBase64(base64Input.trim(), password, onProgress);
             }
-            
+
             // Show decryption output
             this.showDecryptionOutput(result);
             this.showSuccessMessage('decrypt', 'File decrypted successfully!');
-            
+
         } catch (error) {
             const processedError = this.errorHandler.handleError(error, 'decryption', {
                 inputType: this.currentDecryptInputType,
                 imageSize: this.selectedImage?.size,
                 operationId
             });
-            
+
             this.showEnhancedError('decrypt', processedError);
         } finally {
             this.currentOperations.delete(operationId);
@@ -738,26 +801,15 @@ class SecureFileImageConverter {
         }
     }
 
-    async simulateProgress(type) {
-        // Simulate progress for demonstration purposes
-        const phases = ['Processing...', 'Converting...', 'Finalizing...'];
-        
-        for (let i = 0; i < phases.length; i++) {
-            const progress = ((i + 1) / phases.length) * 100;
-            this.showProgress(type, progress, phases[i]);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-    }
-
     showProgress(type, percent, phase) {
         const progressContainer = document.getElementById(`${type}-progress`);
         const progressFill = document.getElementById(`${type}-progress-fill`);
         const progressText = document.getElementById(`${type}-progress-text`);
-        
+
         progressContainer.style.display = 'block';
         progressFill.style.width = `${percent}%`;
         progressText.textContent = phase;
-        
+
         if (percent < 100) {
             progressFill.classList.add('loading');
         } else {
@@ -768,12 +820,6 @@ class SecureFileImageConverter {
     hideProgress(type) {
         const progressContainer = document.getElementById(`${type}-progress`);
         progressContainer.style.display = 'none';
-    }
-
-    showSuccess(type, message) {
-        this.hideProgress(type);
-        // TODO: Show success message and results
-        console.log(`${type} success:`, message);
     }
 
     showError(type, message) {
@@ -793,11 +839,12 @@ class SecureFileImageConverter {
         const element = document.getElementById(elementId);
         try {
             await navigator.clipboard.writeText(element.value);
-            // TODO: Show success feedback
+            this.showTemporaryMessage(element, 'Copied!', 'success');
         } catch (error) {
             // Fallback for older browsers
             element.select();
             document.execCommand('copy');
+            this.showTemporaryMessage(element, 'Copied!', 'success');
         }
     }
 
@@ -807,28 +854,49 @@ class SecureFileImageConverter {
             const text = await navigator.clipboard.readText();
             element.value = text;
             this.updateDecryptButtonState();
+            this.showTemporaryMessage(element, 'Pasted!', 'success');
         } catch (error) {
-            // TODO: Show error message
+            this.showTemporaryMessage(element, 'Paste failed', 'error');
             console.error('Failed to paste from clipboard:', error);
         }
     }
 
+    showTemporaryMessage(element, message, type) {
+        const tempMessage = document.createElement('div');
+        tempMessage.className = `temporary-message ${type}`;
+        tempMessage.textContent = message;
+
+        element.parentNode.style.position = 'relative';
+        element.parentNode.appendChild(tempMessage);
+
+        setTimeout(() => {
+            if (tempMessage.parentNode) {
+                tempMessage.remove();
+            }
+        }, 2000);
+    }
+
     formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
-        
+
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
+
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    async readFileAsText(file) {
+    /**
+     * Reads file as ArrayBuffer
+     * @param {File} file - File to read
+     * @returns {Promise<ArrayBuffer>} File data as ArrayBuffer
+     */
+    async readFileAsArrayBuffer(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.onerror = () => reject(new Error('Failed to read file'));
-            reader.readAsText(file);
+            reader.readAsArrayBuffer(file);
         });
     }
 
@@ -855,13 +923,13 @@ class SecureFileImageConverter {
         const outputArea = document.getElementById('encrypt-output');
         const imageOutput = document.getElementById('image-output');
         const base64Output = document.getElementById('base64-output');
-        
+
         // Show appropriate output based on format selection
         if (this.currentOutputFormat === 'image') {
             // Show image download option
             imageOutput.style.display = 'block';
             base64Output.style.display = 'none';
-            
+
             if (result.imageBlob) {
                 this.setupImageDownload(result.imageBlob);
             }
@@ -869,12 +937,12 @@ class SecureFileImageConverter {
             // Show Base64 text output
             imageOutput.style.display = 'none';
             base64Output.style.display = 'block';
-            
+
             if (result.base64) {
                 document.getElementById('base64-text').value = result.base64;
             }
         }
-        
+
         outputArea.style.display = 'block';
     }
 
@@ -883,36 +951,36 @@ class SecureFileImageConverter {
         const outputArea = document.getElementById('decrypt-output');
         const textOutput = document.getElementById('text-output');
         const fileOutput = document.getElementById('file-output');
-        
+
         // Check if this is an archive file
         const isArchive = result.metadata && result.metadata.mimeType === 'application/x-file-archive';
-        
+
         if (isArchive) {
             // Handle multi-file archive
             this.handleArchiveDecryption(result);
         } else {
             // Determine if result is text or file based on metadata
             const isTextContent = result.metadata && result.metadata.mimeType === 'text/plain';
-            
+
             if (isTextContent) {
                 // Show text output
                 textOutput.style.display = 'block';
                 fileOutput.style.display = 'none';
-                
+
                 const textData = new TextDecoder().decode(result.data);
                 document.getElementById('decrypted-text').value = textData;
             } else {
                 // Show file download option
                 textOutput.style.display = 'none';
                 fileOutput.style.display = 'block';
-                
+
                 document.getElementById('restored-file-name').textContent = result.filename || result.metadata?.filename || 'decrypted_file';
                 document.getElementById('restored-file-size').textContent = this.formatFileSize(result.data.byteLength);
-                
+
                 this.setupFileDownload(result.data, result.filename || result.metadata?.filename || 'decrypted_file', result.mimeType || result.metadata?.mimeType);
             }
         }
-        
+
         outputArea.style.display = 'block';
     }
 
@@ -920,14 +988,14 @@ class SecureFileImageConverter {
         try {
             // Extract files from archive
             const extractedFiles = await this.fileArchiver.extractArchive(result.data);
-            
+
             // Hide single file output and show multi-file output
             document.getElementById('text-output').style.display = 'none';
             document.getElementById('file-output').style.display = 'none';
-            
+
             // Create or update multi-file output section
             this.showMultiFileOutput(extractedFiles);
-            
+
         } catch (error) {
             console.error('Failed to extract archive:', error);
             this.showError('decrypt', 'Failed to extract files from archive: ' + error.message);
@@ -936,13 +1004,13 @@ class SecureFileImageConverter {
 
     showMultiFileOutput(extractedFiles) {
         const outputArea = document.getElementById('decrypt-output');
-        
+
         // Remove existing multi-file output if it exists
         const existingMultiOutput = document.getElementById('multi-file-output');
         if (existingMultiOutput) {
             existingMultiOutput.remove();
         }
-        
+
         // Create multi-file output section
         const multiFileOutput = document.createElement('div');
         multiFileOutput.id = 'multi-file-output';
@@ -952,13 +1020,13 @@ class SecureFileImageConverter {
             <div class="multi-file-downloads" id="multi-file-downloads"></div>
             <button id="download-all-btn" class="download-btn">Download All as ZIP</button>
         `;
-        
+
         // Add to output area
         outputArea.appendChild(multiFileOutput);
-        
+
         // Populate individual file download buttons
         const downloadsContainer = document.getElementById('multi-file-downloads');
-        
+
         extractedFiles.forEach((file, index) => {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-download-item';
@@ -969,16 +1037,16 @@ class SecureFileImageConverter {
                 </div>
                 <button class="download-btn file-download-btn" data-index="${index}">Download</button>
             `;
-            
+
             // Add download handler for individual file
             const downloadBtn = fileItem.querySelector('.file-download-btn');
             downloadBtn.addEventListener('click', () => {
                 this.downloadIndividualFile(file);
             });
-            
+
             downloadsContainer.appendChild(fileItem);
         });
-        
+
         // Add download all handler
         document.getElementById('download-all-btn').addEventListener('click', () => {
             this.downloadAllFiles(extractedFiles);
@@ -1014,11 +1082,11 @@ class SecureFileImageConverter {
 
     setupImageDownload(imageBlob) {
         const downloadBtn = document.getElementById('download-image-btn');
-        
+
         // Remove any existing event listeners
         const newBtn = downloadBtn.cloneNode(true);
         downloadBtn.parentNode.replaceChild(newBtn, downloadBtn);
-        
+
         newBtn.addEventListener('click', () => {
             const url = URL.createObjectURL(imageBlob);
             const a = document.createElement('a');
@@ -1033,17 +1101,17 @@ class SecureFileImageConverter {
 
     setupFileDownload(arrayBuffer, filename, mimeType) {
         const downloadBtn = document.getElementById('download-file-btn');
-        
+
         // Remove any existing event listeners
         const newBtn = downloadBtn.cloneNode(true);
         downloadBtn.parentNode.replaceChild(newBtn, downloadBtn);
-        
+
         newBtn.addEventListener('click', () => {
             const blob = new Blob([arrayBuffer], { type: mimeType || 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = filename;
+            a.download = filename || 'decrypted_file';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -1052,119 +1120,82 @@ class SecureFileImageConverter {
     }
 
     /**
-     * Show enhanced error with recovery options
-     * @param {string} type - Operation type ('encrypt' or 'decrypt')
+     * Shows enhanced error with recovery options
+     * @param {string} type - Error type (encrypt/decrypt)
      * @param {ProcessedError} processedError - Processed error with recovery options
      */
     showEnhancedError(type, processedError) {
         this.hideProgress(type);
-        
+
         const errorDisplay = document.getElementById(`${type}-error`);
-        
-        // Create enhanced error display with recovery options
-        let errorHtml = `
-            <div class="error-content">
-                <div class="error-message">${processedError.userMessage}</div>
-        `;
-        
-        // Add recovery suggestions if available
+        errorDisplay.className = `error-display severity-${processedError.severity}`;
+
+        // Create enhanced error content
+        const errorContent = document.createElement('div');
+        errorContent.className = 'error-content';
+
+        // Main error message
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'error-message';
+        errorMessage.textContent = processedError.userMessage;
+        errorContent.appendChild(errorMessage);
+
+        // Recovery suggestions if available
         if (processedError.recovery && processedError.recovery.canRecover) {
-            errorHtml += `
-                <div class="error-recovery">
-                    <h4>What you can try:</h4>
-                    <ul>
-            `;
-            
+            const recoverySection = document.createElement('div');
+            recoverySection.className = 'error-recovery';
+
+            const recoveryTitle = document.createElement('h4');
+            recoveryTitle.textContent = 'Suggestions:';
+            recoverySection.appendChild(recoveryTitle);
+
+            const suggestionsList = document.createElement('ul');
             processedError.recovery.suggestions.forEach(suggestion => {
-                errorHtml += `<li>${suggestion}</li>`;
+                const listItem = document.createElement('li');
+                listItem.textContent = suggestion;
+                suggestionsList.appendChild(listItem);
             });
-            
-            errorHtml += `
-                    </ul>
-                </div>
-            `;
-            
-            // Add retry button for recoverable errors
-            if (processedError.recovery.strategy === 'retry_password' || 
-                processedError.recovery.strategy === 'reupload_file') {
-                errorHtml += `
-                    <div class="error-actions">
-                        <button class="retry-btn" onclick="window.app.retryOperation('${type}')">Try Again</button>
-                    </div>
-                `;
-            }
+            recoverySection.appendChild(suggestionsList);
+            errorContent.appendChild(recoverySection);
         }
-        
-        // Add error ID for debugging
+
+        // Error ID for debugging
         if (this.errorHandler.debugMode) {
-            errorHtml += `<div class="error-id">Error ID: ${processedError.id}</div>`;
+            const errorId = document.createElement('div');
+            errorId.className = 'error-id';
+            errorId.textContent = `Error ID: ${processedError.id}`;
+            errorContent.appendChild(errorId);
         }
-        
-        errorHtml += `</div>`;
-        
-        errorDisplay.innerHTML = errorHtml;
+
+        // Clear existing content and add new content
+        errorDisplay.innerHTML = '';
+        errorDisplay.appendChild(errorContent);
         errorDisplay.style.display = 'block';
-        
-        // Auto-hide non-critical errors after 10 seconds
-        if (processedError.severity === 'low' || processedError.severity === 'medium') {
-            setTimeout(() => {
-                if (errorDisplay.style.display === 'block') {
-                    this.fadeOutError(errorDisplay);
-                }
-            }, 10000);
-        }
     }
 
     /**
-     * Show success message with fade out
-     * @param {string} type - Operation type
+     * Shows success message
+     * @param {string} type - Message type (encrypt/decrypt)
      * @param {string} message - Success message
      */
     showSuccessMessage(type, message) {
         this.hideProgress(type);
-        
-        // Create success notification
-        const successDiv = document.createElement('div');
-        successDiv.className = 'success-message';
-        successDiv.textContent = message;
-        
+
+        // Create success message element
+        const successMessage = document.createElement('div');
+        successMessage.className = 'success-message';
+        successMessage.textContent = message;
+
         // Insert after the action button
         const actionBtn = document.getElementById(`${type}-btn`);
-        actionBtn.parentNode.insertBefore(successDiv, actionBtn.nextSibling);
-        
-        // Fade out after 3 seconds
-        setTimeout(() => {
-            this.fadeOutError(successDiv);
-        }, 3000);
-    }
+        actionBtn.parentNode.insertBefore(successMessage, actionBtn.nextSibling);
 
-    /**
-     * Fade out error or success message
-     * @param {HTMLElement} element - Element to fade out
-     */
-    fadeOutError(element) {
-        element.style.transition = 'opacity 0.5s ease-out';
-        element.style.opacity = '0';
-        
+        // Auto-remove after 3 seconds
         setTimeout(() => {
-            if (element.parentNode) {
-                element.parentNode.removeChild(element);
+            if (successMessage.parentNode) {
+                successMessage.remove();
             }
-        }, 500);
-    }
-
-    /**
-     * Retry operation after error
-     * @param {string} type - Operation type to retry
-     */
-    retryOperation(type) {
-        this.clearErrors();
-        
-        if (type === 'encrypt') {
-            this.handleEncrypt();
-        } else if (type === 'decrypt') {
-            this.handleDecrypt();
-        }
+        }, 3000);
     }
 
     /**
@@ -1173,169 +1204,24 @@ class SecureFileImageConverter {
     performOperationCleanup() {
         try {
             // Clear sensitive data from memory
-            this.securityManager.performSecureCleanup();
-            
-            // Clear any temporary variables
-            if (this.encryptionResult && this.encryptionResult.base64) {
-                // Don't clear the result as user might need it, but log cleanup
-                console.log('Operation cleanup performed');
-            }
-            
-            // Force garbage collection if available (development only)
-            if (this.errorHandler.debugMode && window.gc) {
-                window.gc();
-            }
-        } catch (cleanupError) {
-            const processedError = this.errorHandler.handleError(cleanupError, 'cleanup');
-            console.warn('Cleanup error:', processedError.userMessage);
-        }
-    }
-
-    /**
-     * Enhanced clipboard operations with error handling
-     */
-    async copyToClipboard(elementId) {
-        try {
-            const element = document.getElementById(elementId);
-            await navigator.clipboard.writeText(element.value);
-            
-            // Show success feedback
-            this.showTemporaryMessage(element, 'Copied to clipboard!', 'success');
-        } catch (error) {
-            const processedError = this.errorHandler.handleError(error, 'clipboard_copy');
-            
-            // Fallback for older browsers
-            try {
-                const element = document.getElementById(elementId);
-                element.select();
-                document.execCommand('copy');
-                this.showTemporaryMessage(element, 'Copied to clipboard!', 'success');
-            } catch (fallbackError) {
-                this.showTemporaryMessage(element, 'Failed to copy to clipboard', 'error');
-            }
-        }
-    }
-
-    async pasteFromClipboard(elementId) {
-        try {
-            const element = document.getElementById(elementId);
-            const text = await navigator.clipboard.readText();
-            element.value = text;
-            this.updateDecryptButtonState();
-            
-            // Show success feedback
-            this.showTemporaryMessage(element, 'Pasted from clipboard!', 'success');
-        } catch (error) {
-            const processedError = this.errorHandler.handleError(error, 'clipboard_paste');
-            const element = document.getElementById(elementId);
-            this.showTemporaryMessage(element, 'Failed to paste from clipboard', 'error');
-        }
-    }
-
-    /**
-     * Show temporary message near an element
-     * @param {HTMLElement} element - Element to show message near
-     * @param {string} message - Message to show
-     * @param {string} type - Message type ('success' or 'error')
-     */
-    showTemporaryMessage(element, message, type) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `temporary-message ${type}`;
-        messageDiv.textContent = message;
-        
-        // Position near the element
-        element.parentNode.insertBefore(messageDiv, element.nextSibling);
-        
-        // Remove after 2 seconds
-        setTimeout(() => {
-            this.fadeOutError(messageDiv);
-        }, 2000);
-    }
-
-    /**
-     * Enhanced progress reporting with time estimates
-     * @param {string} type - Operation type
-     * @param {number} percent - Progress percentage
-     * @param {string} phase - Current phase
-     */
-    showProgress(type, percent, phase) {
-        const progressContainer = document.getElementById(`${type}-progress`);
-        const progressFill = document.getElementById(`${type}-progress-fill`);
-        const progressText = document.getElementById(`${type}-progress-text`);
-        
-        if (!progressContainer || !progressFill || !progressText) {
-            console.warn('Progress elements not found');
-            return;
-        }
-        
-        progressContainer.style.display = 'block';
-        progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
-        
-        // Enhanced progress text with phase and percentage
-        let displayText = phase;
-        if (percent > 0 && percent < 100) {
-            displayText += ` (${Math.round(percent)}%)`;
-        }
-        
-        // Add time estimate for large operations
-        if (this.selectedFile && this.selectedFile.size > 10 * 1024 * 1024) { // > 10MB
-            const estimatedTime = this.fileProcessor.estimateProcessingTime?.(this.selectedFile.size);
-            if (estimatedTime && percent > 10 && percent < 90) {
-                const remainingTime = Math.round((estimatedTime * (100 - percent)) / 100);
-                if (remainingTime > 0) {
-                    displayText += ` - ~${remainingTime}s remaining`;
+            if (this.securityManager && this.securityManager.performSecureCleanup) {
+                const cleanedBytes = this.securityManager.performSecureCleanup();
+                if (cleanedBytes > 0) {
+                    console.log(`Cleaned up ${cleanedBytes} bytes of sensitive data`);
                 }
             }
+
+            // Force garbage collection if available
+            if (window.gc) {
+                window.gc();
+            }
+        } catch (error) {
+            console.warn('Cleanup operation failed:', error);
         }
-        
-        progressText.textContent = displayText;
-        
-        if (percent < 100) {
-            progressFill.classList.add('loading');
-        } else {
-            progressFill.classList.remove('loading');
-        }
-    }
-
-    /**
-     * Get error statistics for debugging
-     */
-    getErrorStatistics() {
-        return this.errorHandler.getErrorStatistics();
-    }
-
-    /**
-     * Export error log for debugging
-     */
-    exportErrorLog() {
-        const errorLog = this.errorHandler.exportErrorLog();
-        const blob = new Blob([errorLog], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `error-log-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    /**
-     * Enable debug mode for detailed error logging
-     */
-    enableDebugMode() {
-        this.errorHandler.setDebugMode(true);
-        console.log('Debug mode enabled. Error details will be logged to console.');
-    }
-
-    /**
-     * Disable debug mode
-     */
-    disableDebugMode() {
-        this.errorHandler.setDebugMode(false);
-        console.log('Debug mode disabled.');
     }
 }
 
-// Application class is now initialized from the HTML module script
+// Export for use in other modules
+if (typeof window !== 'undefined') {
+    window.SecureFileImageConverter = SecureFileImageConverter;
+}
