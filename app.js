@@ -482,6 +482,15 @@ class SecureFileImageConverter {
             return;
         }
 
+        // Additional check for multi-file archives (more restrictive due to Base64 expansion)
+        if (validFiles.length > 1) {
+            const maxMultiFileSize = 150 * 1024 * 1024; // 150MB limit for multi-file
+            if (totalSize > maxMultiFileSize) {
+                this.showError('encrypt', `Multi-file encryption is limited to ${this.formatFileSize(maxMultiFileSize)} total. Current size: ${this.formatFileSize(totalSize)}. Please reduce the number of files or use smaller files. For larger files, encrypt them individually.`);
+                return;
+            }
+        }
+
         // Store selected files
         this.selectedFiles = validFiles;
 

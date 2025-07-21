@@ -30,6 +30,22 @@ class FileArchiver {
         let archiveContent = '';
         let totalSize = 0;
 
+        // Pre-calculate total size and validate
+        for (const file of files) {
+            totalSize += file.size;
+        }
+        
+        // Estimate final archive size (Base64 expansion + metadata overhead)
+        const estimatedArchiveSize = totalSize * 1.4; // 40% overhead for Base64 + metadata
+        const maxSafeSize = 200 * 1024 * 1024; // 200MB limit for archives
+        
+        if (estimatedArchiveSize > maxSafeSize) {
+            throw new Error(`Combined file size too large for multi-file encryption. Total size: ${Math.round(totalSize / (1024 * 1024))}MB. Please reduce the number of files or use smaller files.`);
+        }
+
+        // Reset totalSize for actual processing
+        totalSize = 0;
+
         // Process each file
         for (let i = 0; i < files.length; i++) {
             const file = files[i];

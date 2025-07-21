@@ -176,10 +176,18 @@ class ImageConverterImpl extends ImageConverter {
         let width = Math.ceil(Math.sqrt(pixelCount));
         let height = Math.ceil(pixelCount / width);
         
-        // If square dimensions are too large, use fixed width
-        if (width > CONSTANTS.FIXED_WIDTH) {
-            width = CONSTANTS.FIXED_WIDTH;
+        // If square dimensions are too large, use a more balanced approach
+        if (width > CONSTANTS.FIXED_WIDTH || height > CONSTANTS.FIXED_WIDTH) {
+            // Use a balanced approach: try to keep both dimensions reasonable
+            const maxDimension = Math.min(CONSTANTS.FIXED_WIDTH * 2, CONSTANTS.MAX_SAFE_DIMENSION / 2);
+            width = Math.min(maxDimension, Math.ceil(Math.sqrt(pixelCount * 1.5))); // Slightly wider than square
             height = Math.ceil(pixelCount / width);
+            
+            // If height is still too large, increase width further
+            if (height > maxDimension) {
+                width = Math.ceil(pixelCount / maxDimension);
+                height = maxDimension;
+            }
         }
         
         // Memory safety check: prevent images exceeding safe browser limits
