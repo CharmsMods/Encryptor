@@ -1051,14 +1051,87 @@ class SecureFileImageConverter {
         multiFileOutput.className = 'output-section';
         multiFileOutput.innerHTML = `
             <h3>Decrypted Files (${extractedFiles.length})</h3>
+            <div class="file-preview-grid" id="file-preview-grid"></div>
             <div class="multi-file-downloads" id="multi-file-downloads"></div>
-            <button id="download-all-btn" class="download-btn">Download All as ZIP</button>
+            <button id="download-all-btn" class="download-btn">Download All Files</button>
         `;
 
         // Add to output area
         outputArea.appendChild(multiFileOutput);
 
-        // Populate individual file download buttons
+        // Create file preview grid
+        this.createFilePreviewGrid(extractedFiles);
+
+        // Create download list
+        this.createFileDownloadList(extractedFiles);
+
+        // Add download all handler
+        document.getElementById('download-all-btn').addEventListener('click', () => {
+            this.downloadAllFiles(extractedFiles);
+        });
+    }
+
+    createFilePreviewGrid(extractedFiles) {
+        const previewGrid = document.getElementById('file-preview-grid');
+
+        extractedFiles.forEach((file, index) => {
+            const previewCard = document.createElement('div');
+            previewCard.className = 'file-preview-card';
+
+            // Create card header
+            const header = document.createElement('div');
+            header.className = 'file-preview-header';
+            header.innerHTML = `
+                <h4 class="file-preview-name">${file.name}</h4>
+                <span class="file-preview-size">${this.formatFileSize(file.size)}</span>
+            `;
+            previewCard.appendChild(header);
+
+            // Create content area
+            const content = document.createElement('div');
+            content.className = 'file-preview-content';
+
+            // Determine file type and create appropriate preview
+            const fileType = this.getFileType(file.name, file.type);
+
+            if (fileType === 'text') {
+                this.createTextPreview(content, file);
+            } else if (fileType === 'image') {
+                this.createImagePreview(content, file);
+            } else {
+                this.createGenericPreview(content, file, fileType);
+            }
+
+            previewCard.appendChild(content);
+
+            // Create action buttons
+            const actions = document.createElement('div');
+            actions.className = 'file-preview-actions';
+
+            if (fileType === 'text') {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'preview-action-btn copy-content-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', () => {
+                    this.copyFileContent(file);
+                });
+                actions.appendChild(copyBtn);
+            }
+
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'preview-action-btn download-file-btn';
+            downloadBtn.textContent = 'Download';
+            downloadBtn.addEventListener('click', () => {
+                this.downloadIndividualFile(file);
+            });
+            actions.appendChild(downloadBtn);
+
+            previewCard.appendChild(actions);
+            previewGrid.appendChild(previewCard);
+        });
+    }
+
+    createFileDownloadList(extractedFiles) {
         const downloadsContainer = document.getElementById('multi-file-downloads');
 
         extractedFiles.forEach((file, index) => {
@@ -1080,11 +1153,137 @@ class SecureFileImageConverter {
 
             downloadsContainer.appendChild(fileItem);
         });
+    }
 
-        // Add download all handler
-        document.getElementById('download-all-btn').addEventListener('click', () => {
-            this.downloadAllFiles(extractedFiles);
-        });
+    getFileType(filename, mimeType) {
+        const extension = filename.toLowerCase().split('.').pop();
+
+        // Text files
+        const textExtensions = ['txt', 'md', 'json', 'xml', 'csv', 'log', 'js', 'ts', 'html', 'css', 'py', 'java', 'cpp', 'c', 'h', 'php', 'rb', 'go', 'rs', 'sh', 'bat', 'yml', 'yaml', 'ini', 'cfg', 'conf'];
+        if (textExtensions.includes(extension) || mimeType?.startsWith('text/')) {
+            return 'text';
+        }
+
+        // Image files
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+        if (imageExtensions.includes(extension) || mimeType?.startsWith('image/')) {
+            return 'image';
+        }
+
+        // Video files
+        const videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'];
+        if (videoExtensions.includes(extension) || mimeType?.startsWith('video/')) {
+            return 'video';
+        }
+
+        // Audio files
+        const audioExtensions = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
+        if (audioExtensions.includes(extension) || mimeType?.startsWith('audio/')) {
+            return 'audio';
+        }
+
+        // Archive files
+        const archiveExtensions = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'];
+        if (archiveExtensions.includes(extension)) {
+            return 'archive';
+        }
+
+        // Code files
+        const codeExtensions = ['js', 'ts', 'html', 'css', 'py', 'java', 'cpp', 'c', 'h', 'php', 'rb', 'go', 'rs'];
+        if (codeExtensions.includes(extension)) {
+            return 'code';
+        }
+
+        return 'document';
+    }
+
+    createTextPreview(container, file) {
+        const textContainer = document.createElement('div');
+        textContainer.className = 'text-preview-container';
+
+        const textContent = document.createElement('pre');
+        textContent.className = 'text-preview';
+
+        try {
+            // Convert file data to text
+            const textData = new TextDecoder().decode(file.data);
+            // Limit preview to first 1000 characters
+            const previewText = textData.length > 1000 ? textData.substring(0, 1000) + '...' : textData;
+            textContent.textContent = previewText;
+        } catch (error) {
+            textContent.textContent = 'Unable to preview text content';
+        }
+
+        textContainer.appendChild(textContent);
+        container.appendChild(textContainer);
+    }
+
+    createImagePreview(container, file) {
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'image-preview-container';
+
+        try {
+            const blob = new Blob([file.data], { type: file.type || 'image/*' });
+            const imageUrl = URL.createObjectURL(blob);
+
+            const img = document.createElement('img');
+            img.className = 'image-preview';
+            img.src = imageUrl;
+            img.alt = file.name;
+
+            // Clean up URL when image loads or fails
+            img.onload = () => URL.revokeObjectURL(imageUrl);
+            img.onerror = () => {
+                URL.revokeObjectURL(imageUrl);
+                imageContainer.innerHTML = '<div class="file-type-icon image">🖼️</div><p>Unable to preview image</p>';
+            };
+
+            imageContainer.appendChild(img);
+        } catch (error) {
+            imageContainer.innerHTML = '<div class="file-type-icon image">🖼️</div><p>Unable to preview image</p>';
+        }
+
+        container.appendChild(imageContainer);
+    }
+
+    createGenericPreview(container, file, fileType) {
+        const iconContainer = document.createElement('div');
+        iconContainer.className = 'image-preview-container';
+
+        const icon = document.createElement('div');
+        icon.className = `file-type-icon ${fileType}`;
+
+        // Set appropriate icon based on file type
+        const icons = {
+            document: '📄',
+            video: '🎥',
+            audio: '🎵',
+            archive: '📦',
+            code: '💻'
+        };
+
+        icon.textContent = icons[fileType] || '📄';
+        iconContainer.appendChild(icon);
+
+        const typeLabel = document.createElement('p');
+        typeLabel.style.color = 'rgba(255, 255, 255, 0.7)';
+        typeLabel.style.fontSize = '12px';
+        typeLabel.style.marginTop = '8px';
+        typeLabel.textContent = `${fileType.charAt(0).toUpperCase() + fileType.slice(1)} File`;
+        iconContainer.appendChild(typeLabel);
+
+        container.appendChild(iconContainer);
+    }
+
+    async copyFileContent(file) {
+        try {
+            const textData = new TextDecoder().decode(file.data);
+            await navigator.clipboard.writeText(textData);
+            this.showTemporaryMessage(document.body, 'Content copied to clipboard!', 'success');
+        } catch (error) {
+            console.error('Failed to copy content:', error);
+            this.showTemporaryMessage(document.body, 'Failed to copy content', 'error');
+        }
     }
 
     downloadIndividualFile(file) {
