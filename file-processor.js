@@ -247,6 +247,9 @@ class FileProcessorImpl extends FileProcessor {
             const decryptedResult = await this.cryptoEngine.decrypt(encryptedPayload, password);
             onProgress(100, CONSTANTS.PROGRESS_PHASES.DECRYPTING);
 
+            // Check if this is a multi-file archive
+            const isArchive = this.isMultiFileArchive(decryptedResult.fileData, decryptedResult.metadata);
+            
             // Secure cleanup of intermediate data
             this.securityManager.secureWipe(base64Data);
             this.securityManager.secureWipe(encryptedPayload);
@@ -254,7 +257,9 @@ class FileProcessorImpl extends FileProcessor {
             return {
                 data: decryptedResult.fileData,
                 filename: decryptedResult.metadata.filename,
-                mimeType: decryptedResult.metadata.mimeType
+                mimeType: isArchive ? 'application/x-file-archive' : decryptedResult.metadata.mimeType,
+                isArchive: isArchive,
+                metadata: decryptedResult.metadata
             };
 
         } catch (error) {
@@ -549,6 +554,40 @@ class FileProcessorImpl extends FileProcessor {
     getMemoryUsageEstimate(fileSize) {
         // Conservative estimate: file size * 2.5 for all processing overhead
         return (fileSize * 2.5) / (1024 * 1024);
+    }
+
+    /**
+     * Checks if the decrypted data is a multi-file archive
+     * @param {ArrayBuffer} fileData - Decrypted file data
+     * @param {Object} metadata - File metadata
+     * @returns {boolean} True if this is a multi-file archive
+     */
+    isMultiFileArchive(fileData, metadata) {
+        try {
+            // Check if filename suggests it's an archive
+            if (metadata.filename && metadata.filename.endsWith('.farc')) {
+                return true;
+            }
+            
+            // Check if mime type indicates archive
+            if (metadata.mimeType === 'application/x-file-archive') {
+                return true;
+            }
+            
+            // Try to validate the archive format by checking the content
+            if (typeof window !== 'undefined' && window.FileArchiver) {
+                const fileArchiver = new window.FileArchiver();
+                return fileArchiver.isValidArchive(fileData);
+            }
+            
+            // Fallback: check if the data looks like an archive by examining the content
+            const dataString = new TextDecoder().decode(fileData.slice(0, 1000)); // Check first 1KB
+            return dataString.includes('---FILE-SEPARATOR---') && dataString.includes('"fileCount"');
+            
+        } catch (error) {
+            // If any error occurs during detection, assume it's not an archive
+            return false;
+        }
     }
 }
 
