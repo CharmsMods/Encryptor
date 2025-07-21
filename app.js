@@ -952,8 +952,20 @@ class SecureFileImageConverter {
         const textOutput = document.getElementById('text-output');
         const fileOutput = document.getElementById('file-output');
 
-        // Check if this is an archive file
-        const isArchive = result.metadata && result.metadata.mimeType === 'application/x-file-archive';
+        // Check if this is an archive file using multiple detection methods
+        const isArchive = result.isArchive ||
+            result.metadata?.mimeType === 'application/x-file-archive' ||
+            result.mimeType === 'application/x-file-archive' ||
+            (result.filename && result.filename.endsWith('.farc'));
+
+        console.log('Decryption result analysis:', {
+            filename: result.filename,
+            mimeType: result.mimeType,
+            metadataMimeType: result.metadata?.mimeType,
+            isArchive: result.isArchive,
+            detectedAsArchive: isArchive,
+            dataSize: result.data?.byteLength
+        });
 
         if (isArchive) {
             // Handle multi-file archive
@@ -986,8 +998,21 @@ class SecureFileImageConverter {
 
     async handleArchiveDecryption(result) {
         try {
+            console.log('Handling archive decryption:', {
+                filename: result.filename,
+                mimeType: result.mimeType,
+                isArchive: result.isArchive,
+                dataSize: result.data.byteLength
+            });
+
             // Extract files from archive
             const extractedFiles = await this.fileArchiver.extractArchive(result.data);
+
+            console.log('Extracted files:', extractedFiles.map(f => ({
+                name: f.name,
+                size: f.size,
+                type: f.type
+            })));
 
             // Hide single file output and show multi-file output
             document.getElementById('text-output').style.display = 'none';
