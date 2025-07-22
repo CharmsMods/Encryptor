@@ -197,7 +197,7 @@ class ImageConverterImpl extends ImageConverter {
         
         // Additional memory usage estimation
         const estimatedMemoryMB = (width * height * 4) / (1024 * 1024); // 4 bytes per pixel (RGBA)
-        const MAX_SAFE_MEMORY_MB = 512; // 512MB limit for image processing
+        const MAX_SAFE_MEMORY_MB = 1536; // 1.5GB limit for image processing to handle 1GB files
         
         if (estimatedMemoryMB > MAX_SAFE_MEMORY_MB) {
             throw new Error(`Estimated memory usage (${Math.round(estimatedMemoryMB)}MB) exceeds safe limits. File too large to process.`);

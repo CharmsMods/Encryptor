@@ -666,10 +666,20 @@ class SecureFileImageConverter {
 
             const password = document.getElementById('encrypt-password').value;
 
-            // Enhanced progress callback with error handling
+            // Calculate total file size for progress estimation
+            let totalFileSize = 0;
+            if (this.currentInputType === 'file') {
+                if (this.selectedFiles.length > 0) {
+                    totalFileSize = this.selectedFiles.reduce((sum, file) => sum + file.size, 0);
+                } else if (this.selectedFile) {
+                    totalFileSize = this.selectedFile.size;
+                }
+            }
+
+            // Enhanced progress callback with error handling and time estimation
             const onProgress = (percent, phase) => {
                 try {
-                    this.showProgress('encrypt', percent, phase);
+                    this.showProgressWithEstimation('encrypt', percent, phase, totalFileSize);
                 } catch (progressError) {
                     const processedError = this.errorHandler.handleError(progressError, 'progress_reporting');
                     console.warn('Progress reporting error:', processedError.userMessage);
@@ -824,6 +834,45 @@ class SecureFileImageConverter {
         } else {
             progressFill.classList.remove('loading');
         }
+    }
+
+    showProgressWithEstimation(type, percent, phase, fileSize) {
+        const progressContainer = document.getElementById(`${type}-progress`);
+        const progressFill = document.getElementById(`${type}-progress-fill`);
+        const progressText = document.getElementById(`${type}-progress-text`);
+        
+        progressContainer.style.display = 'block';
+        progressFill.style.width = `${percent}%`;
+        
+        // Add time estimation for large files
+        let displayText = phase;
+        if (fileSize > 100 * 1024 * 1024) { // Files over 100MB
+            const estimatedTimeSeconds = this.estimateProcessingTime(fileSize);
+            const remainingTime = Math.max(0, estimatedTimeSeconds * (100 - percent) / 100);
+            if (remainingTime > 5) {
+                displayText += ` (${Math.ceil(remainingTime)}s remaining)`;
+            }
+        }
+        
+        progressText.textContent = displayText;
+        
+        if (percent < 100) {
+            progressFill.classList.add('loading');
+        } else {
+            progressFill.classList.remove('loading');
+        }
+    }
+
+    /**
+     * Estimates processing time for large files
+     * @param {number} fileSize - File size in bytes
+     * @returns {number} Estimated processing time in seconds
+     */
+    estimateProcessingTime(fileSize) {
+        // Rough estimate: 1MB per second for encryption/decryption
+        const baseMBPerSecond = 1;
+        const fileSizeMB = fileSize / (1024 * 1024);
+        return Math.max(1, Math.ceil(fileSizeMB / baseMBPerSecond));
     }
 
     hideProgress(type) {

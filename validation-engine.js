@@ -285,8 +285,9 @@ class ValidationEngineImpl extends ValidationEngine {
         // Base64 encoding increases size by ~33%, plus additional overhead for processing
         const estimatedMemoryUsage = fileSize * 2.5; // Conservative estimate
         
-        // Check against browser memory limits (conservative estimate of 1GB available memory)
-        const maxSafeMemoryUsage = 1024 * 1024 * 1024; // 1GB
+        // Check against browser memory limits - allow up to 2.5GB for processing 1GB files
+        // This ensures files up to 1GB can be processed safely
+        const maxSafeMemoryUsage = 2.5 * 1024 * 1024 * 1024; // 2.5GB to handle 1GB files
         
         if (estimatedMemoryUsage > maxSafeMemoryUsage) {
             return {

@@ -8,7 +8,7 @@ class SecurityManager {
         // Track sensitive data references for cleanup
         this.sensitiveDataRefs = new Set();
         this.memoryUsageTracker = new Map();
-        this.maxMemoryUsage = 1024 * 1024 * 1024; // 1GB limit
+        this.maxMemoryUsage = 2.5 * 1024 * 1024 * 1024; // 2.5GB limit to handle 1GB files
         this.currentMemoryUsage = 0;
         
         // Detect environment
